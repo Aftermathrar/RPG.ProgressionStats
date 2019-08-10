@@ -14,9 +14,40 @@ Sub WriteStatsToFile()
     Erase arrClass
     
 End Sub
+'Get filepath based on FileName
+Private Function GetSaveName(ByVal sFile As String, ByVal sFilter As String)
+    Dim varSaveName As Variant              'Used for filename dialog
+    Dim tblFile As ListObject
+    Dim rngTemp As Range
+    
+    Set tblFile = Worksheets("Filepaths").ListObjects("tblFilePath")
+    
+    If tblFile.Parent.AutoFilterMode Then
+        tblFile.AutoFilter.ShowAllData
+    End If
+    
+    tblFile.Range.AutoFilter field:=1, Criteria1:=sFile
+    Set rngTemp = tblFile.AutoFilter.Range.Offset(1, 0).SpecialCells(xlCellTypeVisible)
+        
+    varSaveName = rngTemp(1, 2).Value
+    
+    If varSaveName = Empty Then
+        varSaveName = Application.GetSaveAsFilename(FileFilter:=sFilter)
+        If varSaveName = False Then Exit Function
+        rngTemp(1, 2).Value = varSaveName
+    End If
+    
+    tblFile.AutoFilter.ShowAllData
+    
+    GetSaveName = varSaveName
+    
+    Set varSaveName = Nothing
+    Set tblFile = Nothing
+    Set rngTemp = Nothing
+    
+End Function
 'Print arrays to file
 Private Sub PrintArraysToFile(ByVal arrClass As Variant)
-    Dim varSaveName As Variant             'Used for filename dialog
     Dim sFile As String                     'File to write into
     Dim sLineSpacing As String              'Used for indenting at different levels of progression
     Dim iStatEnumPosition As Long
@@ -25,11 +56,13 @@ Private Sub PrintArraysToFile(ByVal arrClass As Variant)
     Dim k As Long
     Dim arrStats As Variant                 'Array to hold the stats range for each class
     
-    'Create and open file for use
-    varSaveName = Application.GetSaveAsFilename(FileFilter:="Text File (*.txt), *.txt")
-    If varSaveName = False Then Exit Sub
-    sFile = varSaveName
+    'Check if file path has been set, otherwise open file dialog
+    sFile = "Progression Stats"         'Identifier for lookup
+    sFile = GetSaveName(sFile, "Text File (*.txt), *.txt")
     
+    If Len(sFile) = 0 Then Exit Sub
+    
+    'Create and open file for use
     Open sFile For Output As #1
     sLineSpacing = "  "
     
@@ -64,6 +97,44 @@ Private Sub PrintArraysToFile(ByVal arrClass As Variant)
     Close #1
 
 End Sub
+'Overwrite Class enumeration file for newly added classes
+Public Sub OverwriteClassEnumerationsFile()
+    Dim rngClass As Range
+    Dim cClass As Range
+    Dim sFile As String
+    Dim sClassName As String
+    Dim sLineSpacing As String
+    
+    sFile = GetSaveName("Character Class", "C# Script (*.cs), *.cs")
+    Open sFile For Output As #1
+    
+    Set rngClass = Worksheets("Enumerations").ListObjects("tblCharacterClasses").DataBodyRange.Columns(1)
+    
+    'Namespace and enum
+    Print #1, "namespace RPG.Stats" & vbNewLine & _
+        "{" & vbNewLine & Space(4) & _
+        "public enum CharacterClass" & vbNewLine & Space(4) & _
+        "{"
+        
+    sLineSpacing = Space(8)
+    
+    'Each class name
+    For Each cClass In rngClass.Cells
+        'Will need to make this search for all invalid characters
+        sClassName = Replace(cClass.Value, " ", "")
+        If cClass.Row <= rngClass.Rows.Count Then
+            Print #1, sLineSpacing & sClassName & ","
+        Else
+            Print #1, sLineSpacing & sClassName
+        End If
+    Next cClass
+    
+    'Closing brackets
+    Print #1, Space(4) & "}" & vbNewLine & "}"
+    
+    Close #1
+    
+End Sub
 'By Character Class, find stat range and throw into an array
 Private Sub GetStatArray(ByVal sClass As String, ByVal iStats As Long, ByRef arrStats As Variant)
     Dim arrTemp As Variant          'Temp array to transfer stat rows to main array
@@ -75,7 +146,7 @@ Private Sub GetStatArray(ByVal sClass As String, ByVal iStats As Long, ByRef arr
     Dim cStat As Range
     Dim rngFindStatInClass As Range 'Find stat name in player or enemy ranges
     
-    iLevels = ws.Cells(1, ws.Columns.Count).End(xlToLeft).Value
+    iLevels = ws.Cells(3, ws.Columns.Count).End(xlToLeft).Value
     Set rngStats = Worksheets("Enumerations").ListObjects("tblStats").DataBodyRange.Columns(1)
     Set rngEnemyDetails = ws.Range("Enemies")
     
