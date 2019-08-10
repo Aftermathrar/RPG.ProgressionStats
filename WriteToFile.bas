@@ -73,7 +73,7 @@ Private Sub GetStatArray(ByVal sClass As String, ByVal iStats As Long, ByRef arr
     Dim rngStats As Range           'Stat table to look up stat names
     Dim rngEnemyDetails As Range    'Find enemy stat range by name
     Dim cStat As Range
-    Dim rngFindStatInClass          'Find stat name in player or enemy ranges
+    Dim rngFindStatInClass As Range 'Find stat name in player or enemy ranges
     
     iLevels = ws.Cells(1, ws.Columns.Count).End(xlToLeft).Value
     Set rngStats = Worksheets("Enumerations").ListObjects("tblStats").DataBodyRange.Columns(1)
