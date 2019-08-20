@@ -15,7 +15,7 @@ Sub WriteStatsToFile()
     
 End Sub
 'Get filepath based on FileName
-Private Function GetSaveName(ByVal sFile As String, ByVal sFilter As String)
+Private Function GetSaveName(ByVal sFile As String, ByVal sFilter As String, ByRef sNamespace As String, ByRef sEnum As String)
     Dim varSaveName As Variant              'Used for filename dialog
     Dim tblFile As ListObject
     Dim rngTemp As Range
@@ -30,6 +30,8 @@ Private Function GetSaveName(ByVal sFile As String, ByVal sFilter As String)
     Set rngTemp = tblFile.AutoFilter.Range.Offset(1, 0).SpecialCells(xlCellTypeVisible)
         
     varSaveName = rngTemp(1, 2).Value
+    sNamespace = rngTemp(1, 3).Value2
+    sEnum = rngTemp(1, 4).Value2
     
     If varSaveName = Empty Then
         varSaveName = Application.GetSaveAsFilename(FileFilter:=sFilter)
@@ -58,21 +60,20 @@ Private Sub PrintArraysToFile(ByVal arrClass As Variant)
     
     'Check if file path has been set, otherwise open file dialog
     sFile = "Progression Stats"         'Identifier for lookup
-    sFile = GetSaveName(sFile, "Text File (*.txt), *.txt")
+    sFile = GetSaveName(sFile, "Text File (*.txt), *.txt", sLineSpacing, sLineSpacing)
     
     If Len(sFile) = 0 Then Exit Sub
     
     'Create and open file for use
     Open sFile For Output As #1
-    sLineSpacing = "  "
+    sLineSpacing = Space(2)
     
-    'New line for easier copying
-    Print #1, vbLf
+    Print #1, "Paste this into Progression.asset"
     
     For i = LBound(arrClass, 1) To UBound(arrClass, 1)
         Print #1, sLineSpacing & "- characterClass: " & arrClass(i, 2)
         
-        sLineSpacing = sLineSpacing & "  "
+        sLineSpacing = sLineSpacing & Space(2)
         Print #1, sLineSpacing & "stats:"
         
         Call GetStatArray(arrClass(i, 1), arrClass(i, 3), arrStats)
@@ -81,21 +82,55 @@ Private Sub PrintArraysToFile(ByVal arrClass As Variant)
             
             If Not arrStats(j, 1) = Empty Then
                 Print #1, sLineSpacing & "- stat: " & arrStats(j, 0)
-                sLineSpacing = sLineSpacing & "  "
+                sLineSpacing = sLineSpacing & Space(2)
                 Print #1, sLineSpacing & "levels:"
                 'Starting on second element of array. First element identifies Enum position
                 For k = LBound(arrStats, 2) + 1 To UBound(arrStats, 2)
                     Print #1, sLineSpacing & "- " & arrStats(j, k)
                 Next k
-            sLineSpacing = "    "
+            sLineSpacing = Space(4)
             End If
         Next j
-        sLineSpacing = "  "
+        sLineSpacing = Space(2)
         Erase arrStats
     Next i
     
     Close #1
 
+End Sub
+'Overwrite reference enumeration file
+Private Sub OverwriteEnumerationsFile(ByVal sFile As String, ByVal rngEnum As Range, ByVal strNameSpace As String, ByVal strEnumName As String)
+    Dim c As Range
+    Dim sEnumEntry As String
+    Dim sLineSpacing As String
+    
+    Open sFile For Output As #1
+    
+    'Namespace and enum
+    Print #1, "namespace " & strNameSpace & vbNewLine & _
+        "{" & vbNewLine & Space(4) & _
+        "public enum " & strEnumName & vbNewLine & Space(4) & _
+        "{"
+        
+    sLineSpacing = Space(8)
+    
+    'Each entry in table gets added to enum
+    For Each c In rngEnum.Cells
+        sEnumEntry = Replace(c.Value, " ", "")
+        If c.Row <= rngEnum.Rows.Count Then
+            Print #1, sLineSpacing & sEnumEntry & ","
+        Else
+            Print #1, sLineSpacing & sEnumEntry
+        End If
+    Next c
+    
+    'Closing brackets
+    Print #1, Space(4) & "}" & vbNewLine & "}"
+    
+    Close #1
+    
+    Set c = Nothing
+    
 End Sub
 'Overwrite Class enumeration file for newly added classes
 Public Sub OverwriteClassEnumerationsFile()
@@ -105,34 +140,26 @@ Public Sub OverwriteClassEnumerationsFile()
     Dim sClassName As String
     Dim sLineSpacing As String
     
-    sFile = GetSaveName("Character Class", "C# Script (*.cs), *.cs")
-    Open sFile For Output As #1
-    
+    sFile = GetSaveName("Character Class", "C# Script (*.cs), *.cs", strNameSpace, strEnumName)
     Set rngClass = Worksheets("Enumerations").ListObjects("tblCharacterClasses").DataBodyRange.Columns(1)
     
-    'Namespace and enum
-    Print #1, "namespace RPG.Stats" & vbNewLine & _
-        "{" & vbNewLine & Space(4) & _
-        "public enum CharacterClass" & vbNewLine & Space(4) & _
-        "{"
-        
-    sLineSpacing = Space(8)
+    Call OverwriteEnumerationsFile(sFile:=sFile, rngEnum:=rngClass, strNameSpace:=strNameSpace, strEnumName:=strEnumName)
     
-    'Each class name
-    For Each cClass In rngClass.Cells
-        'Will need to make this search for all invalid characters
-        sClassName = Replace(cClass.Value, " ", "")
-        If cClass.Row <= rngClass.Rows.Count Then
-            Print #1, sLineSpacing & sClassName & ","
-        Else
-            Print #1, sLineSpacing & sClassName
-        End If
-    Next cClass
+    Set rngClass = Nothing
+    Set cClass = Nothing
     
-    'Closing brackets
-    Print #1, Space(4) & "}" & vbNewLine & "}"
+End Sub
+'Overwrite Stat enumeration file for newly added stats
+Public Sub OverwriteStatEnumerationsFile()
+    Dim rngStat As Range
+    Dim sFile As String
     
-    Close #1
+    sFile = GetSaveName("Stats", "C# Script (*.cs), *.cs")
+    Set rngStat = Worksheets("Enumerations").ListObjects("tblStats").DataBodyRange.Columns(1)
+    
+    Call OverwriteEnumerationsFile(sFile:=sFile, rngEnum:=rngStat, strNameSpace:=strNameSpace, strEnumName:=strEnumName)
+    
+    Set rngStat = Nothing
     
 End Sub
 'By Character Class, find stat range and throw into an array
@@ -170,7 +197,7 @@ Private Sub GetStatArray(ByVal sClass As String, ByVal iStats As Long, ByRef arr
             arrTemp = rngFindStatInClass.Offset(0, 3).Resize(1, 20).Value
             arrStats(i, 0) = cStat.Offset(0, 1).Value
             For j = LBound(arrStats, 2) + 1 To UBound(arrStats, 2)
-                arrStats(i, j) = arrTemp(1, j)
+                arrStats(i, j) = Round(arrTemp(1, j), 1)
             Next j
             
             'Advance arrStat row
@@ -182,6 +209,5 @@ Private Sub GetStatArray(ByVal sClass As String, ByVal iStats As Long, ByRef arr
     Set rngStats = Nothing
     Set cStat = Nothing
     Set rngFindStatInClass = Nothing
-                
-            
+                    
 End Sub
