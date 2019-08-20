@@ -32,7 +32,7 @@ Private Sub btnSubmit_Click()
     If Not IsFormFilledOut(iStats) Then Exit Sub
     
     Call AddToEnumerations(iStats)
-    Call AddToStatTable
+    Call AddToEnemyTable
     Call ExtendEnemiesNamedRange
     
     'Scary
@@ -91,7 +91,7 @@ Private Sub AddToEnumerations(ByVal iStats As Integer)
     
 End Sub
 'Add enemy name, multiplier, and stats to enemy table
-Private Sub AddToStatTable()
+Private Sub AddToEnemyTable()
     Dim ctl As Control
     Dim rngEnemy As Range
     Dim dblMultValue As Single
@@ -134,20 +134,6 @@ Private Sub AddToStatTable()
     Set ctl = Nothing
     Set rngEnemy = Nothing
                     
-End Sub
-'Update the size of the Enemies named range
-Private Sub ExtendEnemiesNamedRange()
-    Dim iFirstRow As Integer
-    Dim iLastRow As Integer
-    Dim rngEnemy As Range
-    
-    Set rngEnemy = Worksheets("Key Stats").Range("Enemies")
-    
-    iFirstRow = rngEnemy(1, 1).Row
-    iLastRow = Worksheets("Key Stats").Cells(Worksheets("Key Stats").Rows.Count, 1).End(xlUp).Row
-    
-    rngEnemy.Resize(iLastRow - iFirstRow + 1, 1).Name = "Enemies"
-    
 End Sub
 'Get number of levels configured
 Private Function GetLevelRange() As Integer
@@ -268,6 +254,10 @@ Private Sub AddStatCheckBoxes()
     Set cStat = Nothing
     Set ctl = Nothing
     
+End Sub
+'Prevent common invalid characters in enemy name
+Private Sub txtEnemyName_KeyPress(ByVal KeyAscii As MSForms.ReturnInteger)
+    If InStr("/\?*[],.{}!@#$%^&-=+<>()~`;:'""", Chr(KeyAscii)) Then KeyAscii = 0
 End Sub
 'Checkbox control
 Public Sub frmAddEnemyCheckBox_Click()
