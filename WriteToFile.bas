@@ -135,10 +135,9 @@ End Sub
 'Overwrite Class enumeration file for newly added classes
 Public Sub OverwriteClassEnumerationsFile()
     Dim rngClass As Range
-    Dim cClass As Range
     Dim sFile As String
-    Dim sClassName As String
-    Dim sLineSpacing As String
+    Dim strNameSpace As String
+    Dim strEnumName As String
     
     sFile = GetSaveName("Character Class", "C# Script (*.cs), *.cs", strNameSpace, strEnumName)
     Set rngClass = Worksheets("Enumerations").ListObjects("tblCharacterClasses").DataBodyRange.Columns(1)
@@ -153,8 +152,10 @@ End Sub
 Public Sub OverwriteStatEnumerationsFile()
     Dim rngStat As Range
     Dim sFile As String
+    Dim strNameSpace As String
+    Dim strEnumName As String
     
-    sFile = GetSaveName("Stats", "C# Script (*.cs), *.cs")
+    sFile = GetSaveName("Stats", "C# Script (*.cs), *.cs", strNameSpace, strEnumName)
     Set rngStat = Worksheets("Enumerations").ListObjects("tblStats").DataBodyRange.Columns(1)
     
     Call OverwriteEnumerationsFile(sFile:=sFile, rngEnum:=rngStat, strNameSpace:=strNameSpace, strEnumName:=strEnumName)
